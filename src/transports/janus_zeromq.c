@@ -99,12 +99,7 @@ static GThread *zeromq_thread = NULL, *zeromq_admin_thread = NULL;
 static void *janus_zeromq_thread(void *data);
 static void *janus_zeromq_admin_thread(void *data);
 
-/* Transport session */
-typedef struct janus_zeromq_session {
-	janus_transport_session transport_session;
-	guint64 session_id;
-} janus_zeromq_session;
-
+/* No need for custom session structure - we use basic transport_session */
 static janus_mutex sessions_mutex;
 static GHashTable *sessions = NULL;
 
@@ -159,7 +154,8 @@ gboolean janus_zeromq_is_admin_api_enabled(void) {
 }
 
 /* Session management */
-static void janus_zeromq_session_free(janus_zeromq_session *session) {
+static void janus_zeromq_transport_session_free(gpointer data) {
+	janus_transport_session *session = (janus_transport_session *)data;
 	if(session) {
 		g_free(session);
 	}
@@ -190,7 +186,7 @@ int janus_zeromq_init(janus_transport_callbacks *callback, const char *config_pa
 	/* Store the callbacks and initialize sessions */
 	gateway = callback;
 	sessions = g_hash_table_new_full(g_int64_hash, g_int64_equal, 
-		(GDestroyNotify)g_free, (GDestroyNotify)janus_zeromq_session_free);
+		(GDestroyNotify)g_free, (GDestroyNotify)janus_zeromq_transport_session_free);
 	janus_mutex_init(&sessions_mutex);
 
 	/* Read configuration */
@@ -263,6 +259,10 @@ int janus_zeromq_init(janus_transport_callbacks *callback, const char *config_pa
 		int linger = 0;
 		zmq_setsockopt(zmq_socket, ZMQ_LINGER, &linger, sizeof(linger));
 		
+		/* Set receive timeout */
+		int timeout = 1000; /* 1 second */
+		zmq_setsockopt(zmq_socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
+		
 		if(zmq_bind(zmq_socket, bind_address) < 0) {
 			JANUS_LOG(LOG_FATAL, "Could not bind ZeroMQ socket to %s: %s\n", 
 				bind_address, zmq_strerror(errno));
@@ -296,6 +296,10 @@ int janus_zeromq_init(janus_transport_callbacks *callback, const char *config_pa
 		/* Set socket options */
 		int linger = 0;
 		zmq_setsockopt(zmq_admin_socket, ZMQ_LINGER, &linger, sizeof(linger));
+		
+		/* Set receive timeout */
+		int timeout = 1000; /* 1 second */
+		zmq_setsockopt(zmq_admin_socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
 		
 		if(zmq_bind(zmq_admin_socket, bind_address) < 0) {
 			JANUS_LOG(LOG_FATAL, "Could not bind ZeroMQ admin socket to %s: %s\n",
@@ -332,10 +336,7 @@ static void *janus_zeromq_thread(void *data) {
 		/* Initialize message */
 		zmq_msg_init(&message);
 		
-		/* Receive message with timeout */
-		int timeout = 1000; /* 1 second */
-		zmq_setsockopt(zmq_socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
-		
+		/* Receive message (timeout is already set) */
 		int size = zmq_msg_recv(&message, zmq_socket, 0);
 		if(size < 0) {
 			if(errno == EAGAIN || errno == EINTR) {
@@ -369,12 +370,13 @@ static void *janus_zeromq_thread(void *data) {
 			continue;
 		}
 		
-		/* Create a transport session */
+		/* Create a transport session - Note: ownership transfers to gateway */
 		janus_transport_session *transport_session = g_malloc0(sizeof(janus_transport_session));
 		transport_session->transport_p = &janus_zeromq_transport;
 		
-		/* Pass to gateway */
+		/* Pass to gateway - gateway takes ownership of both root and transport_session */
 		gateway->incoming_request(&janus_zeromq_transport, transport_session, NULL, FALSE, root, NULL);
+		/* Note: Do not free transport_session or root here - gateway is responsible */
 	}
 	
 	JANUS_LOG(LOG_VERB, "Leaving ZeroMQ thread...\n");
@@ -391,10 +393,7 @@ static void *janus_zeromq_admin_thread(void *data) {
 		/* Initialize message */
 		zmq_msg_init(&message);
 		
-		/* Receive message with timeout */
-		int timeout = 1000; /* 1 second */
-		zmq_setsockopt(zmq_admin_socket, ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
-		
+		/* Receive message (timeout is already set) */
 		int size = zmq_msg_recv(&message, zmq_admin_socket, 0);
 		if(size < 0) {
 			if(errno == EAGAIN || errno == EINTR) {
@@ -428,12 +427,13 @@ static void *janus_zeromq_admin_thread(void *data) {
 			continue;
 		}
 		
-		/* Create a transport session */
+		/* Create a transport session - Note: ownership transfers to gateway */
 		janus_transport_session *transport_session = g_malloc0(sizeof(janus_transport_session));
 		transport_session->transport_p = &janus_zeromq_transport;
 		
-		/* Pass to gateway */
+		/* Pass to gateway - gateway takes ownership of both root and transport_session */
 		gateway->incoming_request(&janus_zeromq_transport, transport_session, NULL, TRUE, root, NULL);
+		/* Note: Do not free transport_session or root here - gateway is responsible */
 	}
 	
 	JANUS_LOG(LOG_VERB, "Leaving ZeroMQ Admin thread...\n");

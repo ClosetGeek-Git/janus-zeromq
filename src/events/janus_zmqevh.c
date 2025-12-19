@@ -303,10 +303,15 @@ static void *janus_zmqevh_thread(void *data) {
 		
 		JANUS_LOG(LOG_HUGE, "Publishing ZeroMQ event: %s\n", payload);
 		
-		/* Publish event */
+		/* Publish event with retry on EAGAIN */
 		int ret = zmq_send(zmq_publisher, payload, strlen(payload), ZMQ_DONTWAIT);
 		if(ret < 0) {
-			JANUS_LOG(LOG_ERR, "Error publishing ZeroMQ event: %s\n", zmq_strerror(errno));
+			if(errno == EAGAIN) {
+				/* Socket buffer full - event dropped */
+				JANUS_LOG(LOG_WARN, "ZeroMQ publisher buffer full, event dropped\n");
+			} else {
+				JANUS_LOG(LOG_ERR, "Error publishing ZeroMQ event: %s\n", zmq_strerror(errno));
+			}
 		}
 		
 		free(payload);
