@@ -1,0 +1,30 @@
+# Configuration file for the Janus ZeroMQ event handler plugin
+#
+# This plugin publishes Janus events via ZeroMQ PUB/SUB sockets.
+# External applications can subscribe to these events using ZeroMQ SUB sockets.
+
+general: {
+	# Whether to enable the ZeroMQ event handler
+	enabled = true
+	
+	# Address to bind the publisher socket to (without port)
+	# Default: tcp://127.0.0.1
+	address = "tcp://127.0.0.1"
+	
+	# Port to bind the publisher socket to
+	# Default: 5546
+	port = 5546
+	
+	# Events to subscribe to
+	# Options: none, all, or comma-separated list of:
+	# - sessions (session related events)
+	# - handles (handle related events)
+	# - jsep (JSEP related events)
+	# - webrtc (WebRTC related events)
+	# - media (media related events)
+	# - plugins (plugin related events)
+	# - transports (transport related events)
+	# - core (core related events)
+	# Default: all
+	events = "all"
+}

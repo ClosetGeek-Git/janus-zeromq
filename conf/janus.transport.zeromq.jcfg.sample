@@ -1,0 +1,30 @@
+# Configuration file for the Janus ZeroMQ transport plugin
+#
+# This plugin allows Janus to communicate via ZeroMQ sockets.
+# It supports both the Janus API and Admin API endpoints.
+
+general: {
+	# Whether to enable the Janus API via ZeroMQ
+	enabled = true
+	
+	# Address to bind the ZeroMQ socket to (without port)
+	# Default: tcp://127.0.0.1
+	address = "tcp://127.0.0.1"
+	
+	# Port to bind the Janus API socket to
+	# Default: 5545
+	port = 5545
+}
+
+admin: {
+	# Whether to enable the Admin API via ZeroMQ
+	admin_enabled = true
+	
+	# Address to bind the Admin API ZeroMQ socket to (without port)
+	# Default: tcp://127.0.0.1
+	admin_address = "tcp://127.0.0.1"
+	
+	# Port to bind the Admin API socket to
+	# Default: 7445
+	admin_port = 7445
+}
