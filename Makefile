@@ -3,8 +3,8 @@
 # This Makefile builds the ZeroMQ transport and event handler plugins for Janus
 
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 -fPIC $(shell pkg-config --cflags glib-2.0 jansson libzmq)
-LDFLAGS = -shared $(shell pkg-config --libs glib-2.0 jansson libzmq)
+CFLAGS = -Wall -Wextra -O2 -fPIC -Iinclude $(shell pkg-config --cflags glib-2.0 jansson libzmq 2>/dev/null || echo "-I/usr/include/glib-2.0")
+LDFLAGS = -shared $(shell pkg-config --libs glib-2.0 jansson libzmq 2>/dev/null || echo "-lglib-2.0 -ljansson -lzmq")
 
 # Output directories
 BUILD_DIR = build
